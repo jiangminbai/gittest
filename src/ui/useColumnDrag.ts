@@ -1,13 +1,25 @@
 import { useRef, useLayoutEffect, useEffect, useMemo, useState } from "react";
 interface State {
+  target: HTMLElement | null;
   originIconX: number;
+  originIconW: number;
   originThX: number;
   curThIdx: number;
   thCount: number;
   tbpW: number;
   tbW: number;
-  // tb: HTMLElement | null;
+  tbH: number;
+  tbodyT: number;
+  line: HTMLElement | null;
 }
+const createLine = () => {
+  const line = document.createElement("div")
+  line.style.position = "fixed";
+  line.style.width = "1px";
+  line.style.borderLeft = "1px dashed rgba(0, 10, 17, 0.36)";
+  return line
+}
+
 const createColumns = (columns: any[]) => {
   return {
     dragging: false,
@@ -22,44 +34,62 @@ const createColumns = (columns: any[]) => {
 export default function useColumnDrag(columns: any[], tableRef: React.RefObject<HTMLTableSectionElement>) {
   const [dragState, setDragState] = useState(() => createColumns(columns))
   const stateRef = useRef<State>({
+    target: null,
     originIconX: 0,
+    originIconW: 0,
     originThX: 0,
     curThIdx: 0,
     thCount: 0,
     tbpW: 0,
     tbW: 0,
+    tbH: 0,
+    tbodyT: 0,
+    line: createLine(),
   });
   const onMousemove = (e: MouseEvent) => {
+    console.log(e)
     if (stateRef.current) {
-      const diff = e.clientX - stateRef.current.originIconX
-      console.log(diff)
-      setDragState?.(prev => {
-        const widths = prev.columns.reduce((pre, cur) => (pre + cur.width), 0)
-        const greater = widths > stateRef.current.tbpW
-        const columns = prev.columns
-        const state = stateRef.current
-        return {
-          ...prev,
-          tableWidth: Math.max(state.tbW + diff, stateRef.current.tbpW)  + "px",
-          columns: columns.map((val, i) => {
-            let curW = stateRef.current.originThX + diff
-            if (i === stateRef.current.curThIdx) {
-              return {
-                ...val,
-                width: (curW > 20 ? curW : 20) + 'px'
+      if (stateRef.current.line && stateRef.current.target) {
+        const rect = stateRef.current.target.getBoundingClientRect()
+        const diff = e.clientX - stateRef.current.originIconX
+        let curW = stateRef.current.originThX + diff
+        curW = Math.max(curW, 20)
+        
+        stateRef.current.line.style.left = `${rect.left + rect.width / 2}px`
+
+        setDragState?.(prev => {
+          // const widths = prev.columns.reduce((pre, cur) => (pre + cur.width), 0)
+          // const greater = widths > stateRef.current.tbpW
+          const columns = prev.columns
+          const state = stateRef.current
+          return {
+            ...prev,
+            tableWidth: Math.max(state.tbW + diff, stateRef.current.tbpW)  + "px",
+            columns: columns.map((val, i) => {
+              if (i === stateRef.current.curThIdx) {
+                return {
+                  ...val,
+                  width: curW + 'px'
+                }
               }
-            }
-            return val
-          })
-        }
-      })
+              return val
+            })
+          }
+        })
+      }
     }
   }
   const onMousedown = (e: MouseEvent) => {
-    const target = e.target as HTMLElement
-    console.log(target.className)
-    if (target.classList.contains("table-drag__icon") || target.parentElement?.classList.contains("table-drag__icon")) {
+    let target = e.target as HTMLElement
+    console.log(e)
+    if (target.parentElement?.classList.contains("table-drag__icon")) {
+      target = target.parentElement as HTMLElement
+    }
+    const rect = target.getBoundingClientRect()
+    stateRef.current.target = target
+    if (target.classList.contains("table-drag__icon")) {
       stateRef.current.originIconX = e.clientX
+      stateRef.current.originIconW = target.clientWidth
       
       let curTh = target
       while (curTh?.tagName !== "TH") {
@@ -83,13 +113,29 @@ export default function useColumnDrag(columns: any[], tableRef: React.RefObject<
         table = table?.parentElement as HTMLElement
       }
       stateRef.current.tbW = table?.clientWidth
-      console.log(stateRef.current.tbW)
+      stateRef.current.tbH = table?.clientHeight
+
       let tableParent = table.parentNode as HTMLElement
       stateRef.current.tbpW = tableParent?.clientWidth
+
+      let tbody = table.querySelector("tbody")
+
+      if (stateRef.current.line && tbody) {
+        document.body.appendChild(stateRef.current.line)
+        
+        const tbodyRect = tbody.getBoundingClientRect()
+        stateRef.current.line.style.display = "block"
+        stateRef.current.line.style.top = `${tbodyRect.top}px`
+        stateRef.current.line.style.left = `${rect.left + rect.width / 2}px`
+        stateRef.current.line.style.height = `${tbody.clientHeight}px`
+      }
       document.body.addEventListener("mousemove", onMousemove, false)
     }
   }
   const onMouseup = (e: MouseEvent) => {
+    if (stateRef.current.line) {
+      stateRef.current.line.style.display = "none"
+    }
     document.body.removeEventListener("mousemove", onMousemove, false)
   }
 
