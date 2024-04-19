@@ -21,6 +21,8 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import { visuallyHidden } from '@mui/utils';
 import TableDragColumn from '../ui/TableDragColumn';
+import ColGroup from '../ui/ColGroup';
+import useColumnDrag from '../ui/useColumnDrag';
 
 interface Data {
   id: number;
@@ -185,64 +187,64 @@ function EnhancedTableHead(props: EnhancedTableProps) {
     (property: keyof Data) => (event: React.MouseEvent<unknown>) => {
       onRequestSort(event, property);
     };
-  const positionRef = React.useRef({
-    origin: 0,
-    originEl: 0,
-    idx: 0,
-  });
-  const headRef = React.useRef<HTMLTableSectionElement>(null);
-  const onMousemove = (e: MouseEvent) => {
-    const target = e.target as HTMLElement
-    if (positionRef.current) {
-      const diff = e.clientX - positionRef.current.origin
-      console.log(diff)
-      setColgroupVal?.(prev => prev.map((val, i) => {
-        if (i === positionRef.current.idx) {
-          const w = positionRef.current.originEl + diff
-          console.log(w)
-          return {
-            ...val,
-            width: w + 'px'
-          }
-        }
-        return val
-      }))
-    }
-  }
-  const onMousedown = (e: MouseEvent) => {
-    const target = e.target as HTMLElement
-    console.log(target.className)
-    if (target.classList.contains("table-drag__icon")) {
-      positionRef.current.origin = e.clientX
+  // const positionRef = React.useRef({
+  //   origin: 0,
+  //   originEl: 0,
+  //   idx: 0,
+  // });
+  // const headRef = React.useRef<HTMLTableSectionElement>(null);
+  // const onMousemove = (e: MouseEvent) => {
+  //   const target = e.target as HTMLElement
+  //   if (positionRef.current) {
+  //     const diff = e.clientX - positionRef.current.origin
+  //     console.log(diff)
+  //     setColgroupVal?.(prev => prev.map((val, i) => {
+  //       if (i === positionRef.current.idx) {
+  //         const w = positionRef.current.originEl + diff
+  //         console.log(w)
+  //         return {
+  //           ...val,
+  //           width: w + 'px'
+  //         }
+  //       }
+  //       return val
+  //     }))
+  //   }
+  // }
+  // const onMousedown = (e: MouseEvent) => {
+  //   const target = e.target as HTMLElement
+  //   console.log(target.className)
+  //   if (target.classList.contains("table-drag__icon")) {
+  //     positionRef.current.origin = e.clientX
       
-      let parent = target
-      while (parent?.tagName !== "TH") {
-        parent = parent.parentElement as HTMLElement
-      }
-      console.log(parent.getBoundingClientRect())
-      positionRef.current.originEl = parent.getBoundingClientRect().width
+  //     let parent = target
+  //     while (parent?.tagName !== "TH") {
+  //       parent = parent.parentElement as HTMLElement
+  //     }
+  //     console.log(parent.getBoundingClientRect())
+  //     positionRef.current.originEl = parent.getBoundingClientRect().width
 
-      const index = Array.prototype.slice.apply(headRef.current?.querySelectorAll('.custom-table__cell')).findIndex(f => f === parent)
-      positionRef.current.idx = index
-      document.body.addEventListener("mousemove", onMousemove, false)
-    }
-  }
-  const onMouseup = (e: MouseEvent) => {
-    document.body.removeEventListener("mousemove", onMousemove, false)
-  }
+  //     const index = Array.prototype.slice.apply(headRef.current?.querySelectorAll('.custom-table__cell')).findIndex(f => f === parent)
+  //     positionRef.current.idx = index
+  //     document.body.addEventListener("mousemove", onMousemove, false)
+  //   }
+  // }
+  // const onMouseup = (e: MouseEvent) => {
+  //   document.body.removeEventListener("mousemove", onMousemove, false)
+  // }
 
-  React.useEffect(() => {
-    document.body.addEventListener("mousedown", onMousedown, false)
-    document.body.addEventListener("mouseup", onMouseup, false)
+  // React.useEffect(() => {
+  //   document.body.addEventListener("mousedown", onMousedown, false)
+  //   document.body.addEventListener("mouseup", onMouseup, false)
 
-    return () => {
-      document.body.removeEventListener("mousedown", onMousedown, false)
-      document.body.removeEventListener("mouseup", onMouseup, false)
-    }
-  }, [])
+  //   return () => {
+  //     document.body.removeEventListener("mousedown", onMousedown, false)
+  //     document.body.removeEventListener("mouseup", onMouseup, false)
+  //   }
+  // }, [])
 
   return (
-    <TableHead ref={headRef}>
+    <TableHead>
       <TableRow className='custom-table__row'>
         <TableCell padding="checkbox">
           <Checkbox
@@ -352,6 +354,8 @@ export default function EnhancedTable() {
   const [rowsPerPage, setRowsPerPage] = React.useState(5);
 
   const [colgroupVal , setColgroupVal] = React.useState<any[]>(createColGroupVal);
+  const tableRef = React.useRef<HTMLTableSectionElement>(null)
+  const dragState = useColumnDrag([{}, ...headCells], tableRef)
 
   const handleRequestSort = (
     event: React.MouseEvent<unknown>,
@@ -424,18 +428,11 @@ export default function EnhancedTable() {
         <EnhancedTableToolbar numSelected={selected.length} />
         <TableContainer>
           <Table
-            sx={{ minWidth: 750 }}
+            sx={{ minWidth: 750, width: dragState.tableWidth }}
             aria-labelledby="tableTitle"
             size={dense ? 'small' : 'medium'}
           >
-            <colgroup>
-            <col></col>
-              {
-                colgroupVal.map(val => {
-                  return <col width={val.width}></col>
-                })
-              }
-            </colgroup>
+            <ColGroup values={dragState.columns} />
             <EnhancedTableHead
               numSelected={selected.length}
               order={order}
